@@ -82,9 +82,8 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 		  } else {
 		    tMap.put(word,token);
 		  }
-		  
-		  doc.setTokenList(Utils.fromCollectionToFSList(jcas,tMap.values()));
 		}
+		doc.setTokenList(Utils.fromCollectionToFSList(jcas,tMap.values()));
 	}
 
 }
