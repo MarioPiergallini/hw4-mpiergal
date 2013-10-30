@@ -169,7 +169,7 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 		  }
 		}
 		
-		// sort answer sentences by cosine similarity
+		// sort answer sentences by cosine similarity using insertion sort
 		for (QIDSet quid : queries.values()){
 		  ArrayList<Sentence> old = quid.answers;
 		  ArrayList<Sentence> ranked = new ArrayList<Sentence>();
@@ -196,7 +196,7 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 	}
 
 	/**
-	 * Computes cosine similarity of two sentences using simple frequencies
+	 * Computes cosine similarity of two sentences using tf-idf
 	 * @return cosine_similarity
 	 */
 	private double computeCosineSimilarity(Map<String, Integer> queryVector,
@@ -214,14 +214,14 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 		  // if the docVector doesn't contain the word, freq=0, so product=0
 		  // so numerator won't change, so we don't need to do anything
 		  if (docVector.containsKey(word)){
-		    numerator += queryVector.get(word) * docVector.get(word);  
+		    numerator += queryVector.get(word) * docVector.get(word) * Math.pow(idf.get(word),2);  
 		  }
 		  // compute the sum of squares of freqs for query
-		  qDiv += Math.pow(queryVector.get(word), 2);
+		  qDiv += Math.pow(queryVector.get(word), 2) * Math.pow(idf.get(word),2);
 		}
 		// compute the sum of squares of freqs for the answer
 		for (String word : docVector.keySet()){
-      sDiv += Math.pow(docVector.get(word), 2);
+      sDiv += Math.pow(docVector.get(word), 2) * Math.pow(idf.get(word),2);
     }
 		
 		double denom = Math.sqrt(qDiv) * Math.sqrt(sDiv);
@@ -246,10 +246,8 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 		    // check if it's a correct answer
 		    if (s.rVal == 1) {
 		      metric_mrr += (1.0 / (double) (i+1) );
-		      System.out.println("Query ID " + s.qID);
-		      System.out.println("Query: " + quid.query.text);
-		      System.out.println("Correct answer: " + s.text);
-		      System.out.println("Score: " + s.cosSim + " Rank= " + (i+1));
+		      System.out.println("Score: " + s.cosSim + " rank=" + (i+1) + " rel="
+		                       + s.rVal + " qid=" + s.qID + " " + s.text);
 		      break;
 		    }
 		  }
