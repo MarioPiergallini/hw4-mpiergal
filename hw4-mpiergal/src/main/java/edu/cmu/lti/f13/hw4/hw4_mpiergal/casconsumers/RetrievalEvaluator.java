@@ -1,7 +1,6 @@
 package edu.cmu.lti.f13.hw4.hw4_mpiergal.casconsumers;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.*;
 
 import org.apache.uima.cas.CAS;
@@ -14,7 +13,6 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.ResourceProcessException;
 import org.apache.uima.util.ProcessTrace;
 
-import edu.cmu.lti.f13.hw4.hw4_mpiergal.VectorSpaceRetrieval;
 import edu.cmu.lti.f13.hw4.hw4_mpiergal.typesystems.Document;
 import edu.cmu.lti.f13.hw4.hw4_mpiergal.typesystems.Token;
 import edu.cmu.lti.f13.hw4.hw4_mpiergal.utils.Utils;
@@ -171,8 +169,25 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 		  }
 		}
 		
-		// compute the rank of retrieved sentences
-		
+		// sort answer sentences by cosine similarity
+		for (QIDSet quid : queries.values()){
+		  ArrayList<Sentence> old = quid.answers;
+		  ArrayList<Sentence> ranked = new ArrayList<Sentence>();
+		  while (old.size() > 0){
+		    double bestScore = 0.0;
+		    int bestIndex = 0;
+		    for (int i=0;i<old.size();i++){
+		      double score = old.get(i).cosSim;
+		      if (score > bestScore) {
+		        bestScore = score;
+		        bestIndex = i;
+		      }
+		    }
+		    ranked.add(old.get(bestIndex));
+		    old.remove(bestIndex);
+		  }
+		  quid.answers = ranked;
+		}
 		
 		
 		// TODO :: compute the metric:: mean reciprocal rank
@@ -181,27 +196,66 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 	}
 
 	/**
-	 * 
+	 * Computes cosine similarity of two sentences using simple frequencies
 	 * @return cosine_similarity
 	 */
 	private double computeCosineSimilarity(Map<String, Integer> queryVector,
 			Map<String, Integer> docVector) {
 		double cosine_similarity=0.0;
 
-		// TODO :: compute cosine similarity between two sentences
+		// compute cosine similarity between two sentences
 		
+		double numerator = 0.0;
+		double qDiv = 0.0;
+		double sDiv = 0.0;
+		
+		for (String word : queryVector.keySet()){
+		  // add product of frequencies to numerator
+		  // if the docVector doesn't contain the word, freq=0, so product=0
+		  // so numerator won't change, so we don't need to do anything
+		  if (docVector.containsKey(word)){
+		    numerator += queryVector.get(word) * docVector.get(word);  
+		  }
+		  // compute the sum of squares of freqs for query
+		  qDiv += Math.pow(queryVector.get(word), 2);
+		}
+		// compute the sum of squares of freqs for the answer
+		for (String word : docVector.keySet()){
+      sDiv += Math.pow(docVector.get(word), 2);
+    }
+		
+		double denom = Math.sqrt(qDiv) * Math.sqrt(sDiv);
+		
+		cosine_similarity = numerator/denom;
 
 		return cosine_similarity;
 	}
 
 	/**
-	 * 
+	 * Computes mean reciprocal rank for the set of documents
 	 * @return mrr
 	 */
 	private double compute_mrr() {
 		double metric_mrr=0.0;
 
-		// TODO :: compute Mean Reciprocal Rank (MRR) of the text collection
+		// compute Mean Reciprocal Rank (MRR) of the text collection
+		
+		for (QIDSet quid : queries.values()){
+		  for (int i=0; i<quid.answers.size();i++){
+		    Sentence s = quid.answers.get(i);
+		    // check if it's a correct answer
+		    if (s.rVal == 1) {
+		      metric_mrr += (1.0 / (double) (i+1) );
+		      System.out.println("Query ID " + s.qID);
+		      System.out.println("Query: " + quid.query.text);
+		      System.out.println("Correct answer: " + s.text);
+		      System.out.println("Score: " + s.cosSim + " Rank= " + (i+1));
+		      break;
+		    }
+		  }
+		}
+		
+		metric_mrr = (1.0 / (double) queries.size()) * metric_mrr;
 		
 		return metric_mrr;
 	}
